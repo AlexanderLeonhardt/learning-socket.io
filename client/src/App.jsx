@@ -1,20 +1,61 @@
+import { useEffect, useState } from 'react';
 import io from 'socket.io-client';
-const socket = io.connect('http://localhost:3001');
+const serverIp = window.location.hostname === 'localhost' ? 'localhost' : '192.168.1.151';
+const socket = io.connect(`http://${serverIp}:3001`);
 
 function App() {
+  const [messages, setMessages] = useState([]);
+  const [message, setMessage] = useState("");
   
-  const sendMessage = () => {
-    socket.emit('sendMessage', {
-      message: 'Hello'
-    });
+  const handleSendMessage = (event) => {
+    event.preventDefault();
+
+    if (message.trim() !== '') {
+      socket.emit('sendMessage', { message });
+      setMessages(prevMessages => [
+        ...prevMessages,
+        message,
+      ]);
+      setMessage('');
+    }
   }
+
+  useEffect(() => {
+    socket.on('messageHistory', (history) => {
+      const parsedHistory = history.map((msgObj) => {
+        return msgObj.message;
+      });
+      if (parsedHistory) setMessages(parsedHistory);
+    });
+
+    socket.on('recieveMessage', (data) => {
+      setMessages(prevMessages => [
+        ...prevMessages,
+        data[data.length - 1].message,
+      ]);
+    });
+
+    return () => {
+      socket.off('messageHistory');
+      socket.off('recieveMessage');
+    }
+  }, []);
 
   return (
     <div>
-      <input placeholder="Message" />
-      <button
-        onClick={sendMessage}
-      >Send</button>
+      <div>
+        {messages.map((msg, index) => {
+          return <div key={index}>{msg}</div>
+        })}
+      </div>
+      <form onSubmit={handleSendMessage}>
+        <input
+          value={message}
+          placeholder="Message"
+          onChange={(event) => setMessage(event.target.value)} 
+        />
+        <button type='submit'>Send</button>
+      </form>
     </div>
   );
 }

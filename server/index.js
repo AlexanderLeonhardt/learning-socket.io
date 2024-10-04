@@ -11,12 +11,25 @@ const server = createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173'
+    origin: '*'
   }
 });
 
+const messages = [];
+
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  console.log(`User connected`);
+
+  socket.emit('messageHistory', messages);
+
+  socket.on('sendMessage', (data) => {
+    messages.push(data);
+    socket.broadcast.emit('recieveMessage', messages);
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log(`User disconnected`);
+  });
 });
 
 server.listen(PORT, () => {
